@@ -153,8 +153,8 @@ func (e *Connection) UpdateUserDetailsById(reqData model.User, idStr string) (bs
 	}
 
 	update := bson.D{{"$set", UpdateQuery}}
-
-	r := CollectionUserDetails.FindOneAndUpdate(ctx, filter, update).Decode(&updatedDocument)
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	r := CollectionUserDetails.FindOneAndUpdate(ctx, filter, update, opts).Decode(&updatedDocument)
 	if r != nil {
 		return updatedDocument, "Error Occurred", r
 	}
@@ -388,6 +388,209 @@ func (e *Connection) FetchRole(mailId string) string {
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // ======================================Election=============================================
+func (e *Connection) AddElection(data model.ElectionRequest) ([]*model.ElectionDetails, string, error) {
+
+	var finalData []*model.ElectionDetails
+	setData, err := setValueInElectionModelStruct(data)
+	if err != nil {
+		return finalData, "Error occurred", err
+	}
+	insert, err := CollectionElectionDetails.InsertOne(ctx, setData)
+	if err != nil {
+		return finalData, "Error occurred", err
+	}
+	fetchData, err := CollectionElectionDetails.Find(ctx, bson.D{primitive.E{Key: "_id", Value: insert.InsertedID}})
+
+	finalData, err = convertDbResultIntoElectionStruct(fetchData)
+	if err != nil {
+		return finalData, "Error occurred", err
+	}
+	return finalData, "Election details saved successfully!", nil
+}
+
+func (e *Connection) AddCandidate(data model.CandidatesRequest) ([]*model.ElectionDetails, string, error) {
+	var finalData []*model.ElectionDetails
+	electionId, err := primitive.ObjectIDFromHex(data.ElectionId)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	userId, err := primitive.ObjectIDFromHex(data.UserId)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	userData, err := CollectionUserDetails.Find(ctx, bson.D{primitive.E{Key: "_id", Value: userId}})
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	d, _ := convertDbResultIntoUserStruct(userData)
+
+	if len(d) == 0 {
+		return finalData, "Error Occurred", errors.New("Invalid UserId")
+	}
+
+	filter := bson.D{primitive.E{Key: "_id", Value: electionId}}
+	UpdateQuery := bson.D{}
+	UpdateQuery = append(UpdateQuery, primitive.E{Key: "user_id", Value: userId})
+	UpdateQuery = append(UpdateQuery, primitive.E{Key: "name", Value: data.Name})
+	UpdateQuery = append(UpdateQuery, primitive.E{Key: "commitments", Value: data.Commitments})
+	UpdateQuery = append(UpdateQuery, primitive.E{Key: "vote_sign", Value: data.VoteSign})
+	UpdateQuery = append(UpdateQuery, primitive.E{Key: "is_nomination_verified", Value: false})
+
+	update := bson.D{{"candidates", UpdateQuery}}
+	update = bson.D{{"$push", update}}
+
+	CollectionElectionDetails.FindOneAndUpdate(ctx, filter, update)
+
+	fetchData, err := CollectionElectionDetails.Find(ctx, filter)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	finalData, err = convertDbResultIntoElectionStruct(fetchData)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	return finalData, "Candidates details saved successfully!", nil
+}
+
+func (e *Connection) VerifyCandidate(req model.VerifyCandidates, adminMail string) ([]*model.ElectionDetails, string, error) {
+	var finalData []*model.ElectionDetails
+	var adminData []*model.User
+
+	data, err := CollectionUserDetails.Find(ctx, bson.D{primitive.E{Key: "mail_id", Value: adminMail}})
+	adminData, err = convertDbResultIntoUserStruct(data)
+	if len(adminData) == 0 {
+		return finalData, "Error Occurred", errors.New("Data not present in db acc. to given tokenId")
+	}
+	filter := bson.D{}
+	electionId, err := primitive.ObjectIDFromHex(req.ElectionId)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	userId, err := primitive.ObjectIDFromHex(req.ElectionId)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	filter = append(filter, primitive.E{Key: "_id", Value: electionId})
+	filter = append(filter, primitive.E{Key: "user_id", Value: userId})
+
+	UpdateQuery := bson.D{}
+	UpdateQuery = append(UpdateQuery, primitive.E{Key: "verified_by.id", Value: adminData[0].Id})
+	update := bson.D{{"$set", UpdateQuery}}
+
+	CollectionUserDetails.FindOneAndUpdate(ctx, filter, update)
+
+	data, err = CollectionUserDetails.Find(ctx, filter)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+	finalData, err = convertDbResultIntoElectionStruct(data)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+
+	return finalData, "Candidates verified successfully!", nil
+}
+
+func (e *Connection) FindElectionById(idStr string) ([]*model.ElectionDetails, string, error) {
+	var finalData []*model.ElectionDetails
+
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		return finalData, "Error Occurred", err
+	}
+
+	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+
+	searchData, err := CollectionElectionDetails.Find(ctx, filter)
+	if err != nil {
+		log.Println(err)
+		return finalData, "Error Occurred", err
+	}
+	finalData, err = convertDbResultIntoElectionStruct(searchData)
+	if err != nil {
+		log.Println(err)
+		return finalData, "Error Occurred", err
+	}
+	return finalData, "Data Fetched Successfully", nil
+}
+
+func (e *Connection) SearchFilterOnElectionDetails(req model.SearchFilterElectionReq) ([]*model.ElectionDetails, string, error) {
+	var finalData []*model.ElectionDetails
+	query := bson.D{}
+
+	if req.Id != "" {
+		id, err := primitive.ObjectIDFromHex(req.Id)
+		if err != nil {
+			return finalData, "Error Occurred", err
+		}
+		query = append(query, primitive.E{Key: "_id", Value: id})
+	}
+	if req.Location != "" {
+		query = append(query, primitive.E{Key: "location", Value: req.Location})
+	}
+	if req.Result != "" {
+		query = append(query, primitive.E{Key: "result", Value: req.Result})
+	}
+	if req.ElectionStatus != "" {
+		query = append(query, primitive.E{Key: "election_status", Value: req.ElectionStatus})
+	}
+	if req.ElectionDate != "" {
+		electionDate, err := convertDate(req.ElectionDate)
+		if err != nil {
+			return finalData, "Error Occurred", err
+		}
+		query = append(query, primitive.E{Key: "election_date", Value: electionDate})
+	}
+	if req.ResultDate != "" {
+		resultDate, err := convertDate(req.ResultDate)
+		if err != nil {
+			return finalData, "Error Occurred", err
+		}
+		query = append(query, primitive.E{Key: "result_date", Value: resultDate})
+	}
+
+	searchData, err := CollectionElectionDetails.Find(ctx, query)
+	if err != nil {
+		log.Println(err)
+		return finalData, "Error Occurred", err
+	}
+	finalData, err = convertDbResultIntoElectionStruct(searchData)
+	if err != nil {
+		log.Println(err)
+		return finalData, "Error Occurred", err
+	}
+	return finalData, "Data Fetched Successfully", nil
+}
+
+func setValueInElectionModelStruct(data model.ElectionRequest) (model.ElectionDetails, error) {
+	var electionData model.ElectionDetails
+	electionDate, err := convertDate(data.ElectionDate)
+	if err != nil {
+		return electionData, err
+	}
+	resultDate, err := convertDate(data.ResultDate)
+	if err != nil {
+		return electionData, err
+	}
+	electionData.ElectionDate = electionDate
+	electionData.ResultDate = resultDate
+	electionData.Location = data.Location
+	electionData.ElectionStatus = data.ElectionStatus
+	return electionData, err
+}
+
+func convertDbResultIntoElectionStruct(fetchDataCursor *mongo.Cursor) ([]*model.ElectionDetails, error) {
+	var finaldata []*model.ElectionDetails
+	for fetchDataCursor.Next(ctx) {
+		var data model.ElectionDetails
+		err := fetchDataCursor.Decode(&data)
+		if err != nil {
+			return finaldata, err
+		}
+		finaldata = append(finaldata, &data)
+	}
+	return finaldata, nil
+}
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 

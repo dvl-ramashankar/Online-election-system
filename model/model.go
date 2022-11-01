@@ -84,3 +84,54 @@ type SearchFilterRequest struct {
 	PersonalInfo PersonalInfo `bson:"personal_info,omitempty" json:"personal_info,omitempty"`
 	VerifiedBy   VerifiedBy   `bson:"verified_by,omitempty" json:"verified_by,omitempty"`
 }
+
+type ElectionDetails struct {
+	Id             primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Location       string             `bson:"location,omitempty" json:"location,omitempty"`
+	ElectionDate   time.Time          `bson:"election_date,omitempty" json:"election_date,omitempty"`
+	ResultDate     time.Time          `bson:"result_date,omitempty" json:"result_date,omitempty"`
+	Result         string             `bson:"result,omitempty" json:"result,omitempty"`
+	ElectionStatus string             `bson:"election_status,omitempty" json:"election_status,omitempty"`
+	Candidates     []Candidates       `bson:"candidates,omitempty" json:"candidates,omitempty"`
+}
+
+type Candidates struct {
+	UserId                primitive.ObjectID `bson:"user_id" json:"user_id"`
+	Name                  string             `bson:"name" json:"name"`
+	Commitments           []string           `bson:"commitments" json:"commitments"`
+	Votecount             string             `bson:"vote_count" json:"vote_count"`
+	VoteSign              string             `bson:"vote_sign" json:"vote_sign"`
+	NominationStatus      string             `bson:"nomination_status" json:"nomination_status"`
+	NomainationVerifiedBy primitive.ObjectID `bson:"nomaination_verified_by,omitempty" json:"nomaination_verified_by,omitempty"`
+}
+
+type ElectionRequest struct {
+	Location       string `json:"location,omitempty"`
+	ElectionDate   string `json:"election_date,omitempty"`
+	ResultDate     string `json:"result_date,omitempty"`
+	ElectionStatus string `json:"election_status,omitempty"`
+}
+
+type CandidatesRequest struct {
+	ElectionId  string   `json:"election_id,omitempty"`
+	UserId      string   `json:"user_id,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Commitments []string `json:"commitments,omitempty"`
+	VoteSign    string   `json:"vote_sign,omitempty"`
+}
+
+type VerifyCandidates struct {
+	ElectionId       string `json:"election_id"`
+	UserId           string `json:"user_id"`
+	NominationStatus string `json:"nomination_status"`
+}
+
+type SearchFilterElectionReq struct {
+	Id             string `json:"_id,omitempty"`
+	Location       string `json:"location,omitempty"`
+	ElectionDate   string `json:"election_date,omitempty"`
+	ResultDate     string `json:"result_date,omitempty"`
+	Result         string `json:"result,omitempty"`
+	ElectionStatus string `json:"election_status,omitempty"`
+	CandidateName  string `json:"election_status,omitempty"`
+}
