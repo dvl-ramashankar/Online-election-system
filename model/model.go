@@ -17,7 +17,7 @@ type User struct {
 	PersonalInfo PersonalInfo       `bson:"personal_info,omitempty" json:"personal_info,omitempty"`
 	VerifiedBy   VerifiedBy         `bson:"verified_by,omitempty" json:"verified_by,omitempty"`
 	UploadedDocs UploadedDocs       `bson:"uploaded_docs,omitempty" json:"uploaded_docs,omitempty"`
-	Voted        Voted              `bson:"voted,omitempty" json:"voted,omitempty"`
+	Voted        []Voted            `bson:"voted,omitempty" json:"voted,omitempty"`
 	CreatedOn    time.Time          `bson:"created_on,omitempty" json:"created_on,omitempty"`
 }
 
@@ -50,7 +50,7 @@ type UploadedDocs struct {
 }
 
 type Voted struct {
-	ElectionId []primitive.ObjectID `bson:"election_id,omitempty" json:"election_id,omitempty"`
+	ElectionId primitive.ObjectID `bson:"election_id,omitempty" json:"election_id,omitempty"`
 }
 
 type FinalResponse struct {
@@ -96,13 +96,13 @@ type ElectionDetails struct {
 }
 
 type Candidates struct {
-	UserId                primitive.ObjectID `bson:"user_id" json:"user_id"`
-	Name                  string             `bson:"name" json:"name"`
-	Commitments           []string           `bson:"commitments" json:"commitments"`
-	Votecount             string             `bson:"vote_count" json:"vote_count"`
-	VoteSign              string             `bson:"vote_sign" json:"vote_sign"`
-	NominationStatus      string             `bson:"nomination_status" json:"nomination_status"`
-	NomainationVerifiedBy primitive.ObjectID `bson:"nomaination_verified_by,omitempty" json:"nomaination_verified_by,omitempty"`
+	UserId               primitive.ObjectID `bson:"user_id" json:"user_id"`
+	Name                 string             `bson:"name" json:"name"`
+	Commitments          []string           `bson:"commitments" json:"commitments"`
+	Votecount            int64              `bson:"vote_count" json:"vote_count"`
+	VoteSign             string             `bson:"vote_sign" json:"vote_sign"`
+	NominationStatus     string             `bson:"nomination_status" json:"nomination_status"`
+	NominationVerifiedBy primitive.ObjectID `bson:"nomination_verified_by,omitempty" json:"nomination_verified_by,omitempty"`
 }
 
 type ElectionRequest struct {
@@ -134,4 +134,17 @@ type SearchFilterElectionReq struct {
 	Result         string `json:"result,omitempty"`
 	ElectionStatus string `json:"election_status,omitempty"`
 	CandidateName  string `json:"election_status,omitempty"`
+}
+
+type ElectionDetailsRequest struct {
+	Location       string `json:"location,omitempty"`
+	ElectionDate   string `json:"election_date,omitempty"`
+	ResultDate     string `json:"result_date,omitempty"`
+	Result         string `json:"result,omitempty"`
+	ElectionStatus string `json:"election_status,omitempty"`
+}
+
+type CastVoteReq struct {
+	CandidateId string `json:"candidate_id"`
+	ElectionId  string `json:"election_id"`
 }

@@ -53,7 +53,7 @@ func saveUserDetails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func searchUsersDetailsById(w http.ResponseWriter, r *http.Request) {
+func SearchUsersDetailsById(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "GET" {
@@ -139,7 +139,7 @@ func verifyUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func searchUsersDetailsFilter(w http.ResponseWriter, r *http.Request) {
+func SearchUsersDetailsFilter(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -196,6 +196,16 @@ func addElection(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		respondWithError(w, http.StatusBadRequest, "Invalid Method", "Invalid")
+		return
+	}
+	token := r.Header.Get("tokenid")
+	_, role, err := validateToken(token)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), "Error Occurred")
+		return
+	}
+	if role != "Admin" {
+		respondWithError(w, http.StatusBadRequest, "Token is invalid as it's role is different", "Invalid")
 		return
 	}
 
@@ -264,7 +274,7 @@ func verifyCandidate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func findElectionById(w http.ResponseWriter, r *http.Request) {
+func FindElectionById(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "GET" {
@@ -300,6 +310,122 @@ func searchFilterOnElectionDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result, msg, err := ser.SearchFilterOnElectionDetails(dataBody); err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), msg)
+	} else {
+		respondWithJson(w, http.StatusAccepted, result, "", msg)
+	}
+}
+
+func updateElectionDetailsById(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "PUT" {
+		respondWithError(w, http.StatusBadRequest, "Invalid Method", "Invalid")
+		return
+	}
+	token := r.Header.Get("tokenid")
+	_, role, err := validateToken(token)
+	if role != "Admin" {
+		respondWithError(w, http.StatusBadRequest, "Token is invalid as it's role is different", "Invalid")
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), "Error Occurred")
+		return
+	}
+	path := r.URL.Path
+	segments := strings.Split(path, "/")
+	id := segments[len(segments)-1]
+
+	var dataBody model.ElectionDetailsRequest
+	if err := json.NewDecoder(r.Body).Decode(&dataBody); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Request", "Error Occurred")
+		return
+	}
+
+	if result, msg, err := ser.UpdateElectionDetailsById(dataBody, id); err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), msg)
+	} else {
+		respondWithJson(w, http.StatusAccepted, result, "", msg)
+	}
+}
+
+func DeactivateElection(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "DELETE" {
+		respondWithError(w, http.StatusBadRequest, "Invalid Method", "Invalid")
+		return
+	}
+	token := r.Header.Get("tokenid")
+	_, role, err := validateToken(token)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), "Error Occurred")
+		return
+	}
+	if role != "Admin" {
+		respondWithError(w, http.StatusBadRequest, "Token is invalid as it's role is different", "Invalid")
+		return
+	}
+
+	segment := strings.Split(r.URL.Path, "/")
+	id := segment[len(segment)-1]
+	if id == "" {
+		respondWithError(w, http.StatusBadRequest, "Please provide Id for Search", "Error Occurred")
+	}
+
+	if result, msg, err := ser.DeactivateElection(id); err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), msg)
+	} else {
+		respondWithJson(w, http.StatusAccepted, result, "", msg)
+	}
+}
+
+func ElectionResultById(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "GET" {
+		respondWithError(w, http.StatusBadRequest, "Invalid Method", "Invalid")
+		return
+	}
+
+	segment := strings.Split(r.URL.Path, "/")
+	id := segment[len(segment)-1]
+	if id == "" {
+		respondWithError(w, http.StatusBadRequest, "Please provide Id for Search", "Error Occurred")
+	}
+
+	if result, msg, err := ser.ElectionResultById(id); err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), msg)
+	} else {
+		respondWithJson(w, http.StatusAccepted, result, "", msg)
+	}
+}
+
+func CaseVoteByUser(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "POST" {
+		respondWithError(w, http.StatusBadRequest, "Invalid Method", "Invalid")
+		return
+	}
+	token := r.Header.Get("tokenid")
+	mailId, _, err := validateToken(token)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), "Error Occurred")
+		return
+	}
+	var dataBody model.CastVoteReq
+	if err := json.NewDecoder(r.Body).Decode(&dataBody); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Request", "")
+		return
+	}
+
+	if dataBody.ElectionId == "" || dataBody.CandidateId == "" {
+		respondWithError(w, http.StatusBadRequest, "Please enter electionId or CandidateId", "Error occurred")
+		return
+	}
+	if result, msg, err := ser.CaseVote(dataBody, mailId); err != nil {
 		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), msg)
 	} else {
 		respondWithJson(w, http.StatusAccepted, result, "", msg)
@@ -362,16 +488,20 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}, err, 
 func main() {
 	http.HandleFunc("/generate-token", generateToken)
 	http.HandleFunc("/user/create", saveUserDetails)
-	http.HandleFunc("/user/search/", searchUsersDetailsById)
-	http.HandleFunc("/user/search-filter/", searchUsersDetailsFilter)
+	http.HandleFunc("/user/search/", SearchUsersDetailsById)
+	http.HandleFunc("/user/search-filter/", SearchUsersDetailsFilter)
 	http.HandleFunc("/user/update/", updateUserDetailsById)
 	http.HandleFunc("/user/verify/", verifyUser)
 	http.HandleFunc("/user/deactivate/", deactivateUser)
 	http.HandleFunc("/election/add_election/", addElection)
 	http.HandleFunc("/election/add_candidate/", addCandidate)
 	http.HandleFunc("/election/verify_candidate/", verifyCandidate)
-	http.HandleFunc("/election/find_election/", findElectionById)
+	http.HandleFunc("/election/find_election/", FindElectionById)
 	http.HandleFunc("/election/election_search/", searchFilterOnElectionDetails)
+	http.HandleFunc("/election/update/", updateElectionDetailsById)
+	http.HandleFunc("/election/deactivate/", DeactivateElection)
+	http.HandleFunc("/result/", ElectionResultById)
+	http.HandleFunc("/vote/", CaseVoteByUser)
 	log.Println("Server started at 8080")
 	http.ListenAndServe(":8080", nil)
 }
