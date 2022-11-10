@@ -24,7 +24,7 @@ func init() {
 	ser.Connect()
 }
 
-func saveUserDetails(w http.ResponseWriter, r *http.Request) {
+func SaveUserDetails(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -42,9 +42,14 @@ func saveUserDetails(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Please enter mailId or Password", "")
 		return
 	}
-	if dataBody.Role == "Admin" || dataBody.Role == "Voter" {
+	if dataBody.Role == "" {
 		respondWithError(w, http.StatusBadRequest, "Please enter role field value Admin or Voter", "")
 		return
+	} else {
+		if dataBody.Role != "Admin" && dataBody.Role != "Voter" {
+			respondWithError(w, http.StatusBadRequest, "Please enter role field value Admin or Voter", "")
+			return
+		}
 	}
 	if result, msg, err := ser.SaveUserDetails(dataBody); err != nil {
 		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err), msg)
@@ -74,7 +79,7 @@ func SearchUsersDetailsById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateUserDetailsById(w http.ResponseWriter, r *http.Request) {
+func UpdateUserDetailsById(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "PUT" {
@@ -108,7 +113,7 @@ func updateUserDetailsById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func verifyUser(w http.ResponseWriter, r *http.Request) {
+func VerifyUser(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -160,7 +165,7 @@ func SearchUsersDetailsFilter(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func deactivateUser(w http.ResponseWriter, r *http.Request) {
+func DeactivateUser(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "DELETE" {
@@ -191,7 +196,7 @@ func deactivateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addElection(w http.ResponseWriter, r *http.Request) {
+func AddElection(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -222,7 +227,7 @@ func addElection(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addCandidate(w http.ResponseWriter, r *http.Request) {
+func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -295,7 +300,7 @@ func FindElectionById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func searchFilterOnElectionDetails(w http.ResponseWriter, r *http.Request) {
+func SearchFilterOnElectionDetails(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -316,7 +321,7 @@ func searchFilterOnElectionDetails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateElectionDetailsById(w http.ResponseWriter, r *http.Request) {
+func UpdateElectionDetailsById(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "PUT" {
@@ -432,7 +437,7 @@ func CaseVoteByUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func generateToken(w http.ResponseWriter, r *http.Request) {
+func GenerateToken(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -486,19 +491,19 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}, err, 
 }
 
 func main() {
-	http.HandleFunc("/generate-token", generateToken)
-	http.HandleFunc("/user/create", saveUserDetails)
+	http.HandleFunc("/generate-token/", GenerateToken)
+	http.HandleFunc("/user/create/", SaveUserDetails)
 	http.HandleFunc("/user/search/", SearchUsersDetailsById)
 	http.HandleFunc("/user/search-filter/", SearchUsersDetailsFilter)
-	http.HandleFunc("/user/update/", updateUserDetailsById)
-	http.HandleFunc("/user/verify/", verifyUser)
-	http.HandleFunc("/user/deactivate/", deactivateUser)
-	http.HandleFunc("/election/add_election/", addElection)
-	http.HandleFunc("/election/add_candidate/", addCandidate)
+	http.HandleFunc("/user/update/", UpdateUserDetailsById)
+	http.HandleFunc("/user/verify/", VerifyUser)
+	http.HandleFunc("/user/deactivate/", DeactivateUser)
+	http.HandleFunc("/election/add_election/", AddElection)
+	http.HandleFunc("/election/add_candidate/", AddCandidate)
 	http.HandleFunc("/election/verify_candidate/", verifyCandidate)
 	http.HandleFunc("/election/find_election/", FindElectionById)
-	http.HandleFunc("/election/election_search/", searchFilterOnElectionDetails)
-	http.HandleFunc("/election/update/", updateElectionDetailsById)
+	http.HandleFunc("/election/election_search/", SearchFilterOnElectionDetails)
+	http.HandleFunc("/election/update/", UpdateElectionDetailsById)
 	http.HandleFunc("/election/deactivate/", DeactivateElection)
 	http.HandleFunc("/result/", ElectionResultById)
 	http.HandleFunc("/vote/", CaseVoteByUser)

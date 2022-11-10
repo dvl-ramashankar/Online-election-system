@@ -746,8 +746,11 @@ func (e *Connection) GenerateToken(request model.LoginDetails) (string, string, 
 	if err != nil {
 		return "", "Error", err
 	}
-
-	if record != nil {
+	convData, err := ConvertDbResultIntoUserStruct(record)
+	if err != nil {
+		return "", "Error", err
+	}
+	if len(convData) != 0 {
 		tokenString, err := auth.GenerateJWT(request.MailId)
 		if err != nil {
 			return "", "Error", err
@@ -802,6 +805,13 @@ func (e *Connection) CaseVote(request model.CastVoteReq, mailId string) (string,
 	if err != nil {
 		return "", "Error Occurred", err
 	}
+	c, err := CheckUserIsValidToVote(mailId)
+	if err != nil {
+		return "", "Error Occurred", err
+	}
+	if !c {
+		return "", "Error Occurred", errors.New("Invalid User")
+	}
 	b, err := CheckIfUserAlreadyVoted(mailId, electionId)
 	if err != nil {
 		return "", "Error Occurred", err
@@ -820,6 +830,29 @@ func (e *Connection) CaseVote(request model.CastVoteReq, mailId string) (string,
 		return "", "Error Occurred", err
 	}
 	return "Voted successfully", "Voted successfully", nil
+}
+
+func CheckUserIsValidToVote(mailId string) (bool, error) {
+	filter := bson.D{
+		{"$and",
+			bson.A{
+				bson.D{{"mail_id", mailId}},
+				bson.D{{"is_verified", true}},
+			},
+		},
+	}
+	data, err := CollectionUserDetails.Find(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	convUser, err := ConvertDbResultIntoUserStruct(data)
+	if err != nil {
+		return false, err
+	}
+	if len(convUser) == 0 {
+		return true, err
+	}
+	return false, err
 }
 
 func CheckIfUserAlreadyVoted(mailId string, electionId primitive.ObjectID) (bool, error) {
